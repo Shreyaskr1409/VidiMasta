@@ -1,14 +1,16 @@
 package main
 
 import (
-	"database/sql"
-	"fmt"
+	"context"
 	"log"
+	"net/http"
 	"os"
 
+	"github.com/Shreyaskr1409/VidiMasta/gateway/middlewares"
+	"github.com/Shreyaskr1409/VidiMasta/gateway/routes"
 	"github.com/gorilla/mux"
+	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -18,30 +20,30 @@ func main() {
 	router := mux.NewRouter()
 	router.UseEncodedPath()
 	router.Use(mux.CORSMethodMiddleware(router))
+	router.Use(middlewares.LoggingMiddleware(l))
 
-	// userRouter := router.PathPrefix("/api/v1/users").Subrouter()
-	db, err := connectDB(l)
+	routes.HandleUserRoutes(router, l)
+
+	conn, err := connectDB(l)
 	if err != nil {
 		l.Fatalln("Failed to connect to database: ", err)
 	}
+	defer conn.Close(context.Background())
 
-	if err := db.Ping(); err != nil {
+	if err := conn.Ping(context.Background()); err != nil {
 		l.Fatalln(err)
 	}
+
+	http.ListenAndServe(":9090", router)
 
 	l.Println("Finished")
 }
 
-func connectDB(l *log.Logger) (*sql.DB, error) {
+func connectDB(l *log.Logger) (*pgx.Conn, error) {
 	err := godotenv.Load()
 	if err != nil {
-		l.Fatalln("Failed to load env")
+		l.Fatalln("Failed to obtain environment variables")
 	}
-	db_username := os.Getenv("PGUSER")
-	db_password := os.Getenv("PGPASSWORD")
-
-	conn_str := fmt.Sprintf("postgresql://%s:%s@ep-still-hat-a9l6pp6h-pooler.gwc.azure.neon.tech/neondb?sslmode=require", db_username, db_password)
-	l.Println(conn_str)
-
-	return sql.Open("postgres", conn_str)
+	conn_str := os.Getenv("PGURL")
+	return pgx.Connect(context.Background(), conn_str)
 }
