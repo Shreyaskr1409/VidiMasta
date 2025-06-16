@@ -6,12 +6,12 @@ import "time"
 // "github.com/go-playground/validator/v10"
 
 type User struct {
-	Id           string
-	Username     string
-	Fullname     string
-	Email        string
-	Password     string
-	Avatar       string
-	RefreshToken string
-	CreatedAt    *time.Time
+	Id           string     `json:"_id"`
+	Username     string     `json:"username"`
+	Fullname     string     `json:"fullname"`
+	Email        string     `json:"email"`
+	Password     string     `json:"password"`
+	AvatarUrl    string     `json:"avatar_url"`
+	RefreshToken string     `json:"refresh_token"`
+	CreatedAt    *time.Time `json:"created_at"`
 }
