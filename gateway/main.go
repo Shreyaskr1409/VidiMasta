@@ -5,45 +5,56 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
+	"github.com/Shreyaskr1409/VidiMasta/gateway/database"
 	"github.com/Shreyaskr1409/VidiMasta/gateway/middlewares"
 	"github.com/Shreyaskr1409/VidiMasta/gateway/routes"
 	"github.com/gorilla/mux"
-	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
 )
 
 func main() {
+	godotenv.Load()
 	l := log.New(os.Stdout, "auth: ", log.LstdFlags)
 	l.Println("Logging starts")
+
+	database.Init(l)
+	defer database.Close()
 
 	router := mux.NewRouter()
 	router.UseEncodedPath()
 	router.Use(mux.CORSMethodMiddleware(router))
 	router.Use(middlewares.LoggingMiddleware(l))
 
-	routes.HandleUserRoutes(router, l)
+	routes.HandleUserRoutes(router, l, database.DB)
 
-	conn, err := connectDB(l)
-	if err != nil {
-		l.Fatalln("Failed to connect to database: ", err)
-	}
-	defer conn.Close(context.Background())
-
-	if err := conn.Ping(context.Background()); err != nil {
-		l.Fatalln(err)
+	s := &http.Server{
+		Addr:         "8080",
+		Handler:      router,
+		IdleTimeout:  120 * time.Second,
+		ReadTimeout:  1 * time.Second,
+		WriteTimeout: 1 * time.Second,
 	}
 
-	http.ListenAndServe(":9090", router)
+	go func() {
+		err := s.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
+			l.Fatal(err)
+		}
+	}()
 
-	l.Println("Finished")
-}
+	shutdownChannel := make(chan os.Signal, 1)
+	signal.Notify(shutdownChannel, os.Interrupt, syscall.SIGTERM)
 
-func connectDB(l *log.Logger) (*pgx.Conn, error) {
-	err := godotenv.Load()
-	if err != nil {
-		l.Fatalln("Failed to obtain environment variables")
-	}
-	conn_str := os.Getenv("PGURL")
-	return pgx.Connect(context.Background(), conn_str)
+	sig := <-shutdownChannel
+	l.Println("Recieved signal for graceful shutdown. signal: ", sig)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	l.Println("Shutdown started")
+	s.Shutdown(ctx)
+	l.Println("Shutdown successful")
 }
