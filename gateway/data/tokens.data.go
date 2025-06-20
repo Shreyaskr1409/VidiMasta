@@ -2,14 +2,15 @@ package data
 
 import (
 	"errors"
+	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
 var (
-	accessSecret  = []byte("will-be-adding-soon")
-	refreshSecret = []byte("will-be-adding-soon")
+	accessSecret  = []byte(os.Getenv("ACCESSTOKENSECRET"))
+	refreshSecret = []byte(os.Getenv("REFRESHTOKENSECRET"))
 )
 
 const (
