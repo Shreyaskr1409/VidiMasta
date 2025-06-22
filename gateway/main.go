@@ -23,6 +23,10 @@ func main() {
 
 	database.Init(l)
 	defer database.Close()
+	err := database.Migrate(database.DB, l, context.Background())
+	if err != nil {
+		l.Fatalln("Error encountered during database migration: ", err)
+	}
 
 	router := mux.NewRouter()
 	router.UseEncodedPath()
@@ -35,8 +39,8 @@ func main() {
 		Addr:         ":8080",
 		Handler:      router,
 		IdleTimeout:  120 * time.Second,
-		ReadTimeout:  1 * time.Second,
-		WriteTimeout: 1 * time.Second,
+		ReadTimeout:  20 * time.Second,
+		WriteTimeout: 20 * time.Second,
 	}
 
 	go func() {

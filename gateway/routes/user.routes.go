@@ -13,4 +13,5 @@ func HandleUserRoutes(router *mux.Router, l *log.Logger, db *pgxpool.Pool) {
 	userHandler := handlers.NewUserHandler(l, db)
 
 	userRouter.HandleFunc("/register", userHandler.Register).Methods("POST")
+	userRouter.HandleFunc("/login", userHandler.Login).Methods("GET")
 }

@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -42,10 +43,9 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.l.Println("Obtained valid user request")
-
 	var exists bool
 	ctx := context.Background()
+	defer ctx.Done()
 	err := h.db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM users WHERE username = $1 OR email = $2)", userReq.Username, userReq.Email).Scan(&exists)
 	if err != nil {
 		h.l.Println("Database error while uploading the data: ", err)
@@ -53,9 +53,11 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if exists {
+		h.l.Println("User with the given credentials already exists")
 		http.Error(w, "User with the given credentials already exists", http.StatusConflict)
 		return
 	}
+	h.l.Println("Obtained valid user request")
 
 	id := uuid.New()
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(userReq.Password), bcrypt.DefaultCost)
@@ -69,6 +71,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.l.Println("Failed to generate refresh token: ", err)
 		http.Error(w, "Failed to generate refresh token", http.StatusInternalServerError)
+		return
 	}
 
 	_, err = h.db.Exec(ctx,
@@ -100,5 +103,16 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:    now,
 	}
 	h.l.Println("User created successfully: ", newUser)
-	json.NewEncoder(w).Encode(newUser)
+
+	w.Header().Set("Content-Type", "application/json")
+	if err = json.NewEncoder(w).Encode(newUser); err != nil {
+		h.l.Println("Error encoding response:", err)
+		http.Error(w, "Internal Server Error (But the user is created successfully)", http.StatusInternalServerError)
+		return
+	}
+	h.l.Println("Response written successfully")
+}
+
+func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, "Hello world")
 }

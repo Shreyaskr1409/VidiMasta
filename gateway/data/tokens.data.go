@@ -33,8 +33,8 @@ func GenerateAccessToken(user *User) (string, error) {
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
-	return token.SignedString(accessSecret)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(accessSecret))
 }
 
 func GenerateRefreshToken(user *User) (string, error) {
@@ -46,8 +46,8 @@ func GenerateRefreshToken(user *User) (string, error) {
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
-	return token.SignedString(refreshSecret)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(refreshSecret))
 }
 
 func ValidateToken(tokenStr string, secret []byte) (*Claims, error) {
