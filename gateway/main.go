@@ -32,7 +32,7 @@ func main() {
 	routes.HandleUserRoutes(router, l, database.DB)
 
 	s := &http.Server{
-		Addr:         "8080",
+		Addr:         ":8080",
 		Handler:      router,
 		IdleTimeout:  120 * time.Second,
 		ReadTimeout:  1 * time.Second,
