@@ -49,6 +49,7 @@ func main() {
 			l.Fatal(err)
 		}
 	}()
+	l.Println("Server is listening at port :8080")
 
 	shutdownChannel := make(chan os.Signal, 1)
 	signal.Notify(shutdownChannel, os.Interrupt, syscall.SIGTERM)

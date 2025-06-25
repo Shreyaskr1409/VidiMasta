@@ -11,6 +11,7 @@ require (
 	github.com/gorilla/schema v1.4.1
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/joho/godotenv v1.5.1
+	github.com/nareix/joy4 v0.0.0-20200507095837-05a4ffbb5369
 	golang.org/x/crypto v0.37.0
 )
 
