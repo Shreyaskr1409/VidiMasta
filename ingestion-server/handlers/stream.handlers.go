@@ -1,8 +1,11 @@
 package handlers
 
 import (
+	"bytes"
 	"log"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/Shreyaskr1409/VidiMasta/ingestion-server/data"
@@ -26,26 +29,48 @@ func NewStreamHandler(l *log.Logger, storagePath string, mtx *sync.RWMutex) *Str
 }
 
 func (h *StreamHandler) Publish(conn *rtmp.Conn) {
-	streamKey := conn.URL.Path
+	streamKey := strings.TrimPrefix(conn.URL.Path, "/")
+	println(streamKey)
 
 	cmd := exec.Command("ffmpeg",
-		"-i", "pipe:0", // Reading from stdin
-		"-c", "copy", // No re-encoding
-		"-f", "hls", // sets format
-		"-hls_time", "2", // 2-second segments
-		"-hls_list_size", "10", // Keep 10 segments (20s DVR)
-		"-hls_flags", "delete_segments", // Delete old segments
-		h.storagePath+streamKey+".m3u8", // Output playlist
+		// Input options
+		"-f", "flv", // Force FLV input format
+		"-analyzeduration", "10M", // Increase probe size
+		"-probesize", "10M", // Increase analysis duration
+		"-i", "pipe:0", // Read from stdin
+
+		// Audio handling (if needed)
+		"-acodec", "aac", // Transcode audio to AAC
+		"-ar", "44100", // Set audio sample rate
+		"-b:a", "128k", // Set audio bitrate
+
+		// Video handling
+		"-vcodec", "copy", // Copy video stream as-is
+
+		// HLS output options
+		"-f", "hls",
+		"-hls_time", "2",
+		"-hls_list_size", "10",
+		"-hls_flags", "delete_segments",
+
+		// Proper path joining
+		filepath.Join(h.storagePath, streamKey+".m3u8"),
 	)
-	cmd.Stdin = conn.NetConn() // Sending input from connection to the standard input
+	cmd.Stdin = conn.NetConn()
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
 
 	h.mtx.Lock()
-	h.streams[streamKey].Cmd = cmd
+	h.streams[streamKey] = &data.Stream{Cmd: cmd}
 	h.mtx.Unlock()
 
 	err := cmd.Run() // Block until FFmpeg exits
 	if err != nil {
-		h.l.Println("Error encountered while transcoding: \n", err)
+		h.l.Printf("FFmpeg error: %v\n", err)
+		h.l.Printf("FFmpeg stdout: %s\n", stdout.String())
+		h.l.Printf("FFmpeg stderr: %s\n", stderr.String())
 	}
 
 	defer func() {

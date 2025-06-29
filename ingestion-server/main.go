@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/Shreyaskr1409/VidiMasta/ingestion-server/handlers"
@@ -17,7 +18,7 @@ func main() {
 	l.Println("Logging starts")
 
 	format.RegisterAll()
-	sh := handlers.NewStreamHandler(l, "/public/storage/", &sync.RWMutex{})
+	sh := handlers.NewStreamHandler(l, getAbsPath("./public/storage"), &sync.RWMutex{})
 
 	server := &rtmp.Server{
 		HandlePublish: sh.Publish,
@@ -25,9 +26,24 @@ func main() {
 		HandleConn:    nil,
 	}
 
-	l.Println("Server is listening at port :8081")
 	err := server.ListenAndServe()
 	if err != nil {
 		l.Fatal(err)
 	}
+}
+
+func getAbsPath(s string) string {
+	relativePath := s
+
+	absPath, err := filepath.Abs(relativePath)
+	if err != nil {
+		log.Fatal("Failed to get absolute path:", err)
+	}
+
+	// Ensure trailing slash (optional, but useful for directories)
+	absPath = filepath.Join(absPath, "") // Adds `/` at the end
+
+	log.Println("Absolute Path:", absPath)
+
+	return absPath
 }
