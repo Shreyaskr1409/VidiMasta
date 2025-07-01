@@ -3,8 +3,6 @@ package handlers
 import (
 	"bytes"
 	"log"
-	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 
@@ -30,32 +28,32 @@ func NewStreamHandler(l *log.Logger, storagePath string, mtx *sync.RWMutex) *Str
 
 func (h *StreamHandler) Publish(conn *rtmp.Conn) {
 	streamKey := strings.TrimPrefix(conn.URL.Path, "/")
-	println(streamKey)
 
-	cmd := exec.Command("ffmpeg",
-		// Input options
-		"-f", "flv", // Force FLV input format
-		"-analyzeduration", "10M", // Increase probe size
-		"-probesize", "10M", // Increase analysis duration
-		"-i", "pipe:0", // Read from stdin
+	cmdConfig := data.TranscodingCommand{
+		Input: data.InputOptions{
+			Format:          "flv",
+			AnalyseDuration: "10M",
+			ProbeSize:       "10M",
+			Input:           "pipe:0",
+		},
+		Audio: data.AudioOptions{
+			Codec:      "aac",
+			SampleRate: "44100",
+			AudioRate:  "128k",
+		},
+		Video: data.VideoOptions{
+			Codec: "copy",
+		},
+		Output: data.OutputOptions{
+			Format:   "hls",
+			Time:     "2",
+			ListSize: "10",
+			Flags:    "delete_segments",
+		},
+	}
 
-		// Audio handling (if needed)
-		"-acodec", "aac", // Transcode audio to AAC
-		"-ar", "44100", // Set audio sample rate
-		"-b:a", "128k", // Set audio bitrate
-
-		// Video handling
-		"-vcodec", "copy", // Copy video stream as-is
-
-		// HLS output options
-		"-f", "hls",
-		"-hls_time", "2",
-		"-hls_list_size", "10",
-		"-hls_flags", "delete_segments",
-
-		// Proper path joining
-		filepath.Join(h.storagePath, streamKey+".m3u8"),
-	)
+	// Generate the command
+	cmd := data.BuildCommand(cmdConfig, h.storagePath, streamKey)
 	cmd.Stdin = conn.NetConn()
 
 	var stdout, stderr bytes.Buffer

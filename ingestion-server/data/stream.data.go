@@ -3,5 +3,6 @@ package data
 import "os/exec"
 
 type Stream struct {
-	Cmd *exec.Cmd
+	StreamKey string
+	Cmd       *exec.Cmd
 }
