@@ -13,7 +13,3 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
-
--- Down migration (for rollback)
--- COMMENT: This is included in the same file but would be separate in some systems
--- CREATE TABLE IF EXISTS users;

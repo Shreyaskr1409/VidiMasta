@@ -10,7 +10,6 @@ import (
 
 	"github.com/Shreyaskr1409/VidiMasta/gateway/data"
 	"github.com/Shreyaskr1409/VidiMasta/gateway/utils"
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
@@ -58,7 +57,6 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := uuid.New()
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(userReq.Password), bcrypt.DefaultCost)
 	if err != nil {
 		h.l.Println("Unable to hash the password: ", err)
@@ -75,9 +73,8 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	_, err = h.db.Exec(ctx,
 		`INSERT INTO users 
-		(id, username, fullname, email, password, refresh_token, created_at, updated_at) 
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		id,
+		(username, fullname, email, password, refresh_token, created_at, updated_at) 
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		userReq.Username,
 		userReq.Fullname,
 		userReq.Email,
@@ -92,8 +89,22 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var id string
+	err = h.db.QueryRow(ctx,
+		`SELECT id
+        FROM users WHERE username = $1 OR email = $1`,
+		&userReq.Username,
+	).Scan(
+		id,
+	)
+	if err != nil {
+		h.l.Println("Database error while fetching user: ", err)
+		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
 	newUser := data.User{
-		Id:           id.String(),
+		Id:           id,
 		Username:     userReq.Username,
 		Fullname:     userReq.Fullname,
 		Email:        userReq.Email,
