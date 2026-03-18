@@ -28,6 +28,7 @@ func NewStreamHandler(l *log.Logger, storagePath string, mtx *sync.RWMutex) *Str
 
 func (h *StreamHandler) Publish(conn *rtmp.Conn) {
 	streamKey := strings.TrimPrefix(conn.URL.Path, "/")
+	h.l.Println("Stream Key recieved: ", streamKey)
 
 	cmdConfig := data.TranscodingCommand{
 		Input: data.InputOptions{
@@ -64,16 +65,18 @@ func (h *StreamHandler) Publish(conn *rtmp.Conn) {
 	h.streams[streamKey] = &data.Stream{Cmd: cmd}
 	h.mtx.Unlock()
 
+	defer func() {
+		h.mtx.Lock()
+		delete(h.streams, streamKey)
+		h.mtx.Unlock()
+	}() // Ensures cleanup even if FFmpeg crashes
+
+	h.l.Println("Executing command: ", cmd)
+
 	err := cmd.Run() // Block until FFmpeg exits
 	if err != nil {
 		h.l.Printf("FFmpeg error: %v\n", err)
 		h.l.Printf("FFmpeg stdout: %s\n", stdout.String())
 		h.l.Printf("FFmpeg stderr: %s\n", stderr.String())
 	}
-
-	defer func() {
-		h.mtx.Lock()
-		delete(h.streams, streamKey)
-		h.mtx.Unlock()
-	}() // Ensures cleanup even if FFmpeg crashes
 }
